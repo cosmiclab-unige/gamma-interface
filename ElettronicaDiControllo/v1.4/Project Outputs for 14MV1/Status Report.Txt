@@ -1,0 +1,14 @@
+Project Outputs Generation Report
+---------------------------------
+Start Output Generation At 14:21:45 On 22/09/2023
+
+Output: Generates pick and place files
+Type  : Pick Place
+From  : Variant [[No Variations]] of PCB Document [16MV1.PcbDoc]
+   Generated File[16MV1 v1.4.1 PickandPlace.txt]
+
+
+Files Generated   : 1
+Documents Printed : 0
+
+Finished Output Generation At 14:21:45 On 22/09/2023

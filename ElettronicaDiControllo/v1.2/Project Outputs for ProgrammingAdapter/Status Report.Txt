@@ -1,0 +1,24 @@
+Output: Gerber X2 Files
+Type  : GerberX2
+From  : Project [ProgrammingAdapter.PrjPcb]
+   Generated File[ProgrammingAdapter_Copper_Signal_Top.gbr]
+   Generated File[ProgrammingAdapter_Copper_Signal_1.gbr]
+   Generated File[ProgrammingAdapter_Copper_Signal_2.gbr]
+   Generated File[ProgrammingAdapter_Copper_Signal_Bot.gbr]
+   Generated File[ProgrammingAdapter_Soldermask_Bot.gbr]
+   Generated File[ProgrammingAdapter_Legend_Top.gbr]
+   Generated File[ProgrammingAdapter_Soldermask_Top.gbr]
+   Generated File[ProgrammingAdapter_Keep-out.gbr]
+   Generated File[ProgrammingAdapter_Profile.gbr]
+   Generated File[ProgrammingAdapter_PTH_Drill.gbr]
+   Generated File[ProgrammingAdapter_Drawing_1.gbr]
+   Generated File[ProgrammingAdapter_Drillmap_1.gbr]
+   Generated File[ProgrammingAdapter.RUL]
+   Generated File[ProgrammingAdapter.EXTREP]
+   Generated File[ProgrammingAdapter.REP]
+
+
+Files Generated   : 15
+Documents Printed : 0
+
+Finished Output Generation At 10:01:04 On 27/11/2020
