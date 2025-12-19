@@ -1,1 +1,0 @@
- g++ run_sensor.cpp ../src/sensor_serial.cpp -I ../include  -o run_sensor -lpthread
