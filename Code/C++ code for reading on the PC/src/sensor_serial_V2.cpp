@@ -247,7 +247,10 @@ bool SensorSerial::configurePort()
         return false;
     }
 
-    tio.c_cflag &= ~(PARENB | CSTOPB | CRTSCTS | CBAUD);
+    tio.c_cflag &= ~(PARENB | CSTOPB | CRTSCTS);
+    #ifdef CBAUD
+    tio.c_cflag &= ~CBAUD;
+    #endif
     tio.c_cflag |= CS8 | BOTHER;
 
     tio.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP |

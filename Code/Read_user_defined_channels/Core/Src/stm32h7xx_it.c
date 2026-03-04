@@ -59,7 +59,17 @@ extern DMA_HandleTypeDef hdma_spi1_rx;
 extern SPI_HandleTypeDef hspi1;
 extern TIM_HandleTypeDef htim2;
 extern DMA_HandleTypeDef hdma_usart1_tx;
+extern DMA_HandleTypeDef hdma_usart1_rx;
 extern UART_HandleTypeDef huart1;
+extern uint8_t uart_rx_dma_buffer[];
+extern char command_buffer[];
+extern volatile uint16_t old_pos;
+extern volatile uint8_t acq_enabled;
+extern volatile uint8_t delay_counter;
+extern uint8_t channel_mask[];
+extern uint8_t num_active_channels;
+extern TIM_HandleTypeDef htim3;
+extern void parse_start_command(char *cmd);
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -231,6 +241,20 @@ void DMA1_Stream1_IRQHandler(void)
 }
 
 /**
+  * @brief This function handles DMA1 stream2 global interrupt.
+  */
+void DMA1_Stream2_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Stream2_IRQn 0 */
+
+  /* USER CODE END DMA1_Stream2_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart1_rx);
+  /* USER CODE BEGIN DMA1_Stream2_IRQn 1 */
+
+  /* USER CODE END DMA1_Stream2_IRQn 1 */
+}
+
+/**
   * @brief This function handles TIM2 global interrupt.
   */
 void TIM2_IRQHandler(void)
@@ -258,19 +282,6 @@ void SPI1_IRQHandler(void)
   /* USER CODE END SPI1_IRQn 1 */
 }
 
-/**
-  * @brief This function handles USART1 global interrupt.
-  */
-void USART1_IRQHandler(void)
-{
-  /* USER CODE BEGIN USART1_IRQn 0 */
-
-  /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART1_IRQn 1 */
-
-  /* USER CODE END USART1_IRQn 1 */
-}
 
 /**
   * @brief This function handles EXTI line[15:10] interrupts.
@@ -287,5 +298,55 @@ void EXTI15_10_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+void USART1_IRQHandler(void)
+{
+    if (__HAL_UART_GET_FLAG(&huart1, UART_FLAG_IDLE))
+    {
+        __HAL_UART_CLEAR_FLAG(&huart1, UART_CLEAR_IDLEF);
 
+        uint16_t pos = CMD_BUFFER_SIZE - __HAL_DMA_GET_COUNTER(huart1.hdmarx);
+
+        if (pos != old_pos)
+        {
+            uint16_t len;
+
+            if (pos > old_pos)
+                len = pos - old_pos;
+            else
+                len = CMD_BUFFER_SIZE - old_pos;
+
+            memcpy(command_buffer, &uart_rx_dma_buffer[old_pos], len);
+            command_buffer[len] = '\0';
+
+            old_pos = pos;
+
+            // -------------------------
+            // COMMAND PARSING QUI
+            // -------------------------
+
+            if (strncmp(command_buffer, "start", 5) == 0)
+            {
+                acq_enabled = 0;
+                HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+                HAL_SPI_DMAStop(&hspi1);
+
+                parse_start_command(command_buffer);
+
+                acq_enabled = 1;
+                delay_counter = 0;
+                HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
+                HAL_NVIC_EnableIRQ(TIM2_IRQn);
+                HAL_TIM_Base_Start_IT(&htim2);
+            }
+            else if (strncmp(command_buffer, "stop", 4) == 0)
+            {
+                acq_enabled = 0;
+                HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
+                HAL_SPI_DMAStop(&hspi1);
+            }
+        }
+    }
+
+    HAL_UART_IRQHandler(&huart1);
+}
 /* USER CODE END 1 */

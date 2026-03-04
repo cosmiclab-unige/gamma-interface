@@ -39,6 +39,7 @@
 #define OFFSET 0
 typedef struct __attribute__((packed)) {
     uint8_t  header[3];      // 0x3C, 0x3E, 0x00
+    uint8_t n_channels;
     uint32_t timestamp_us;   // from TIM5
     int16_t  ch[PACKET_SIZE];         // channels
 } SamplePacket;
@@ -68,12 +69,14 @@ TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 // --- System state flags ---
 volatile uint8_t delay_counter = 0;		// Used during the TIM2 startup sequence (test/init logic)
 volatile uint8_t acq_enabled   = 0;      // Acquisition enable/disable flag (controlled via UART commands)
 volatile uint8_t uart_tx_done  = 1;      // UART DMA transmission ready flag
+volatile uint16_t old_pos = 0;
 
 // --- SPI Data Buffers ---
 volatile uint16_t rx_spi_buffer[NUM_OF_DATA];   // Buffer used only for the initial test pattern sequence
@@ -94,9 +97,9 @@ static const uint16_t value = 0xEC0;    // 12-bit configuration command sent via
 static SamplePacket pkt;                // DMA-safe data packet (static to avoid stack corruption)
 
 // --- UART Receive Buffers ---
-char rx_buffer[128];                     // Holds incoming ASCII command ("start", "stop", etc.)
-uint8_t rx_index = 0;                   // Current index while building UART command
-uint8_t rx_byte;                        // Single received byte via UART interrupt
+#define CMD_BUFFER_SIZE 128
+uint8_t uart_rx_dma_buffer[CMD_BUFFER_SIZE];
+char command_buffer[CMD_BUFFER_SIZE];
 
 uint8_t channel_mask[NUM_CHANNELS];   // 1 = canale attivo
 uint8_t num_active_channels = 0;
@@ -117,7 +120,7 @@ static void MX_TIM3_Init(void);
 static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 static void enable_all_channels(void);
-static void parse_start_command(char *cmd);
+void parse_start_command(char *cmd);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -169,7 +172,8 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart1, &rx_byte, 1);
+  HAL_UART_Receive_DMA(&huart1, uart_rx_dma_buffer, CMD_BUFFER_SIZE);
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
   HAL_TIM_Base_Start(&htim5);
   /* USER CODE END 2 */
@@ -666,6 +670,9 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+  /* DMA1_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream2_IRQn);
 
 }
 
@@ -791,40 +798,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 }
 
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance != USART1)
-        return;
 
-    if (rx_byte != '\r' && rx_byte != '\n' && rx_index < sizeof(rx_buffer)-1)
-    {
-        rx_buffer[rx_index++] = rx_byte;
-    }
-    else
-    {
-        rx_buffer[rx_index] = '\0';
-
-        if (strncmp(rx_buffer, "start", 5) == 0)
-		  {
-			  parse_start_command(rx_buffer);
-			  acq_enabled = 1;
-			  delay_counter = 0;
-			  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_11, GPIO_PIN_RESET);
-			  HAL_NVIC_EnableIRQ(TIM2_IRQn);
-			  HAL_TIM_Base_Start_IT(&htim2);
-		  }
-        else if (strcmp(rx_buffer, "stop") == 0)
-              {
-                  acq_enabled = 0;
-                  HAL_TIM_PWM_Stop(&htim3, TIM_CHANNEL_2);
-                  HAL_SPI_DMAStop(&hspi1);   // <-- ferma SPI1 + DMA
-              }
-        rx_index = 0;
-    }
-
-    HAL_UART_Receive_IT(&huart1, &rx_byte, 1);
-
-}
 
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
@@ -860,9 +834,9 @@ void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
 				pkt.ch[idx++] = __builtin_bswap16(spi_rx_buffer[i]);
 			}
 		}
-
+		pkt.n_channels = idx;
         uart_tx_done = 0;
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&pkt, sizeof(pkt.header) + sizeof(pkt.timestamp_us)+idx * sizeof(int16_t));
+        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&pkt, sizeof(pkt.header) + sizeof(pkt.n_channels) + sizeof(pkt.timestamp_us)+idx * sizeof(int16_t));
     }
 }
 
@@ -875,7 +849,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 
-static void parse_start_command(char *cmd)
+void parse_start_command(char *cmd)
 {
     // reset
     memset(channel_mask, 0, sizeof(channel_mask));
@@ -940,28 +914,12 @@ static void enable_all_channels(void)
 
 void MPU_Config(void)
 {
-  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+  //MPU_Region_InitTypeDef MPU_InitStruct = {0};
 
   /* Disables the MPU */
   HAL_MPU_Disable();
 
-  /** Initializes and configures the Region and the memory to be protected
-  */
-  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-  MPU_InitStruct.BaseAddress = 0x0;
-  MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-  MPU_InitStruct.SubRegionDisable = 0x87;
-  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-  MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-  MPU_InitStruct.IsShareable = MPU_ACCESS_SHAREABLE;
-  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
 
-  HAL_MPU_ConfigRegion(&MPU_InitStruct);
-  /* Enables the MPU */
-  HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);
 
 }
 
