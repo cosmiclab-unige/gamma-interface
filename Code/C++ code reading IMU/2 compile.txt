@@ -1,0 +1,11 @@
+Inside test:
+g++ -std=c++17 run_sensor_V2.cpp ../src/sensor_serial_V2.cpp -I ../include -o run_sensor_V2 -lpthread
+
+Run with auto-detect:
+sudo ./run_sensor_V2
+
+Run with explicit serial port:
+sudo ./run_sensor_V2 /dev/ttyUSB0
+
+Run with explicit serial port and baudrate:
+sudo ./run_sensor_V2 /dev/ttyUSB0 3000000
