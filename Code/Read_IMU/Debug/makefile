@@ -60,8 +60,8 @@ all: main-build
 main-build: Read_user_defined_channels.elf secondary-outputs
 
 # Tool invocations
-Read_user_defined_channels.elf Read_user_defined_channels.map: $(OBJS) $(USER_OBJS) /Users/christiangianoglio/Library/CloudStorage/OneDrive-unige.it/Università/Cosmic/Cosmic\ GitHub/interface-boards-otbio/Code/Read_user_defined_channels/STM32H742VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Read_user_defined_channels.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Users/christiangianoglio/Library/CloudStorage/OneDrive-unige.it/Università/Cosmic/Cosmic GitHub/interface-boards-otbio/Code/Read_user_defined_channels/STM32H742VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Read_user_defined_channels.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Read_user_defined_channels.elf Read_user_defined_channels.map: $(OBJS) $(USER_OBJS) /Users/christiangianoglio/Library/CloudStorage/OneDrive-unige.it/Università/Cosmic/Cosmic\ GitHub/interface-boards-otbio/Code/Read_IMU/STM32H742VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Read_user_defined_channels.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"/Users/christiangianoglio/Library/CloudStorage/OneDrive-unige.it/Università/Cosmic/Cosmic GitHub/interface-boards-otbio/Code/Read_IMU/STM32H742VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Read_user_defined_channels.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
