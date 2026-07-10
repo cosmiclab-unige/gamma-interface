@@ -29,7 +29,11 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 #define MPU6050_I2C_ADDR             (0x68U << 1)
+#define MPU6050_REG_SMPLRT_DIV       0x19U
+#define MPU6050_REG_GYRO_CONFIG      0x1BU
+#define MPU6050_REG_ACCEL_CONFIG     0x1CU
 #define MPU6050_REG_PWR_MGMT_1       0x6BU
+#define MPU6050_REG_WHO_AM_I         0x75U
 #define MPU6050_REG_ACCEL_XOUT_H     0x3BU
 #define MPU6050_RAW_FRAME_SIZE       14U
 #define IMU_SAMPLE_PERIOD_MS         10U
@@ -118,8 +122,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_I2C1_Init();
   MX_USART1_UART_Init();
-  uart_ready = 1U;
   /* USER CODE BEGIN 2 */
   UART_SendText("BOOT\r\n");
 
@@ -283,11 +287,11 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = UART_BAUDRATE;
+  huart1.Init.BaudRate = 115200;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX;
+  huart1.Init.Mode = UART_MODE_TX_RX;
   huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   huart1.Init.OverSampling = UART_OVERSAMPLING_16;
   huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
@@ -298,6 +302,10 @@ static void MX_USART1_UART_Init(void)
     Error_Handler();
   }
   if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
   {
     Error_Handler();
   }
@@ -323,8 +331,8 @@ static void MX_GPIO_Init(void)
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -334,20 +342,54 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 static HAL_StatusTypeDef MPU6050_Init(void)
 {
-  uint8_t pwr_mgmt_1 = 0x00;
+  uint8_t check = 0U;
+  uint8_t data = 0U;
 
-  if (HAL_I2C_IsDeviceReady(&hi2c1, MPU6050_I2C_ADDR, 3, 100) != HAL_OK)
+  if (HAL_I2C_IsDeviceReady(&hi2c1, MPU6050_I2C_ADDR, 3, 1000) != HAL_OK)
   {
     return HAL_ERROR;
   }
 
-  if (HAL_I2C_Mem_Write(&hi2c1,
-                        MPU6050_I2C_ADDR,
-                        MPU6050_REG_PWR_MGMT_1,
-                        I2C_MEMADD_SIZE_8BIT,
-                        &pwr_mgmt_1,
-                        1,
-                        100) != HAL_OK)
+  if (HAL_I2C_Mem_Read(&hi2c1,
+                       MPU6050_I2C_ADDR,
+                       MPU6050_REG_WHO_AM_I,
+                       I2C_MEMADD_SIZE_8BIT,
+                       &check,
+                       1,
+                       1000) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  if (check != 0x68U)
+  {
+    return HAL_ERROR;
+  }
+
+  data = 0x00U;
+  if (HAL_I2C_Mem_Write(&hi2c1, MPU6050_I2C_ADDR, MPU6050_REG_PWR_MGMT_1,
+                        I2C_MEMADD_SIZE_8BIT, &data, 1, 1000) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  data = 0x07U;
+  if (HAL_I2C_Mem_Write(&hi2c1, MPU6050_I2C_ADDR, MPU6050_REG_SMPLRT_DIV,
+                        I2C_MEMADD_SIZE_8BIT, &data, 1, 1000) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  data = 0x00U;
+  if (HAL_I2C_Mem_Write(&hi2c1, MPU6050_I2C_ADDR, MPU6050_REG_ACCEL_CONFIG,
+                        I2C_MEMADD_SIZE_8BIT, &data, 1, 1000) != HAL_OK)
+  {
+    return HAL_ERROR;
+  }
+
+  data = 0x00U;
+  if (HAL_I2C_Mem_Write(&hi2c1, MPU6050_I2C_ADDR, MPU6050_REG_GYRO_CONFIG,
+                        I2C_MEMADD_SIZE_8BIT, &data, 1, 1000) != HAL_OK)
   {
     return HAL_ERROR;
   }
@@ -366,7 +408,7 @@ static HAL_StatusTypeDef MPU6050_ReadPacket(ImuPacket *packet)
                        I2C_MEMADD_SIZE_8BIT,
                        raw,
                        MPU6050_RAW_FRAME_SIZE,
-                       100) != HAL_OK)
+                       1000) != HAL_OK)
   {
     return HAL_ERROR;
   }

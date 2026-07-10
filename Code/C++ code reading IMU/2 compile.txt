@@ -8,4 +8,4 @@ Run with explicit serial port:
 sudo ./run_sensor_V2 /dev/ttyUSB0
 
 Run with explicit serial port and baudrate:
-sudo ./run_sensor_V2 /dev/ttyUSB0 3000000
+sudo ./run_sensor_V2 /dev/ttyUSB0 115200

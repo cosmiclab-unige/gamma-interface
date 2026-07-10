@@ -19,7 +19,7 @@ public:
         void(uint32_t timestamp_ms, const ImuValues &)>;
 
     explicit SensorSerial(const std::string &_port_name = "",
-                          uint32_t _baudrate = 3000000);
+                          uint32_t _baudrate = 115200);
 
     ~SensorSerial();
 

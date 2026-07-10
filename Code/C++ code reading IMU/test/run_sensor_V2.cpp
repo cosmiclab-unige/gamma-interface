@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 {
 
     std::string port_name;
-    uint32_t baudrate = 3000000;
+    uint32_t baudrate = 115200;
 
     if (argc > 1)
         port_name = argv[1];
