@@ -1,6 +1,0 @@
-Inside test: g++ run_sensor_V2.cpp ../src/sensor_serial_V2.cpp -I ../include  -o run_sensor_V2 -lpthread
-
- sudo ./run_sensor_V2 start,1-16,32-48
- sudo ./run_sensor_V2 start,1-16
- sudo ./run_sensor_V2 start,1,4,8,9,15
- sudo ./run_sensor_V2
